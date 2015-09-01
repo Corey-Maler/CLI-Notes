@@ -2,6 +2,8 @@
 var fs = require('fs');
 var colors = require('colors');
 
+var dayRequired = '@today';
+
 var walk = function(dir) {
   var sub = {};
   sub.title = "Notes".bold;
@@ -11,11 +13,12 @@ var walk = function(dir) {
   return processFolder(dir, 'Notes'.bold);
 }
 
-var processFile = function(file, name) {
+var processFile = function(file, name, folder) {
   var result = {type: 'none'};
   if (name == 'due') {
     var content = fs.readFileSync(file);
     result.text = ' ' + content.toString().replace(/\n$/, '').red;
+    folder.date = content.toString().replace(/\n$/, '');
     result.type = 'title';
   }
   if (name == 'contacts') {
@@ -39,10 +42,11 @@ var processFolder = function(dir, _name) {
     file = dir + '/' + file;
     var stat = fs.statSync(file)
     if (stat && stat.isDirectory()) {
-      folder.childs.push(processFolder(file, name));
+      var ff = processFolder(file, name);
+      folder.childs.push(ff);
     } else {
       if (stat.isFile()) {
-        var st = processFile(file, name);
+        var st = processFile(file, name, folder);
         if (st.type == 'title')
           folder.title += st.text;
         if (st.type == 'subline')
@@ -55,10 +59,36 @@ var processFolder = function(dir, _name) {
 
 var tree = walk('/Users/k.zarvansky/Google Диск/notes');
 // console.log(tree);
+//
+
+var treeFilter = function(tree, cb)
+{
+  var r = cb(tree);
+  var b = [];
+  tree.childs.forEach(function(el) {
+    if (treeFilter(el, cb)) {
+      b.push(el);
+    }
+  });
+  tree.childs = b;
+  if (r || b.length)
+  {
+    return tree;
+  }
+  return undefined;
+}
+
+var dueDate;
+if (dueDate = process.argv[2]) {
+  var ff = function(el) {return el.date === dueDate}//'@today'}
+
+  var filteredTree = treeFilter(tree, ff);
+}
 
 var level = 0;
 var print = function(tree)
 {
+  if (!tree) return;
   var t = '';
   for (var i = 0; i < level; i++) {
     t += '  '; 
